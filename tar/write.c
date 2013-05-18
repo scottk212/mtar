@@ -853,22 +853,89 @@ static char input_sname[] = "/bsdtar.input", output_sname[] = "/bsdtar.output";
 
 static struct archive_threading_state {
 
-    int entries, processed, finishing;
     sem_t *input_sem, *output_sem;
-    pthread_t gatherer_thread;
+    pthread_t writer_thread;
     pthread_mutex_t mutex;
 
     struct archive_entry *next, **lastPtr;
+    int entries, processed, finishing;
     struct bsdtar *bsdtar;
     struct archive *a;
 
 } *threading_state;
 
-static void *archive_threading_gatherer( void *arg ) {
+static void *archive_threading_writer( void *arg );
+
+static void archive_threading_setup(struct bsdtar *bsdtar, struct archive *a) {
+    threading_state = calloc( sizeof *threading_state, 1 );
+
+    CHECKRC(pthread_mutex_init(&threading_state->mutex, NULL), "Mutex init error");
+
+    sem_unlink(input_sname);
+    sem_unlink(output_sname);
+    CHECKRC(!(threading_state->input_sem = sem_open(input_sname, O_CREAT, 0644, ARCHIVE_MAX_THREADS)),
+        "input_sem %s\n", strerror(errno));
+    CHECKRC(!(threading_state->output_sem = sem_open(output_sname, O_CREAT, 0644, 0)),
+        "output_sem %s\n", strerror(errno) );
+
+    threading_state->lastPtr = &threading_state->next;
+    threading_state->bsdtar = bsdtar;
+    threading_state->a = a;
+
+    CHECKRC(pthread_create(&threading_state->writer_thread, NULL, archive_threading_writer, NULL),
+            "Writer thread create error");
+}
+
+static void *archive_threading_thread( void *arg ) {
+    struct archive_entry *entry = arg;
+    struct archive_entry_extra *extra = archive_entry_extra(entry);
+
+    /*
+     * If we opened a file earlier, write it out now.  Note that
+     * the format handler might have reset the size field to zero
+     * to inform us that the archive body won't get stored.  In
+     * that case, just skip the write.
+     */
+    if (archive_read_data_block2(threading_state->bsdtar->diskreader, (const void **)&extra->entry_buff,
+                                 &extra->bytes_read, &extra->offset, entry) != ARCHIVE_OK)
+        archive_set_error(threading_state->bsdtar->diskreader, errno,
+                          "Archive read error; %s", archive_entry_pathname(entry));
+
+    pthread_mutex_lock(&threading_state->mutex);
+    *threading_state->lastPtr = entry;
+    threading_state->lastPtr = &archive_entry_extra(entry)->next;
+    pthread_mutex_unlock(&threading_state->mutex);
+
+    CHECKRC(sem_post(threading_state->output_sem), "sem_post output");
+    return entry;
+}
+
+static void archive_threading_entry( struct archive_entry *entry ) {
+    pthread_mutex_lock(&threading_state->mutex);
+    threading_state->entries++;
+    pthread_mutex_unlock(&threading_state->mutex);
+
+    if (archive_read_data_block1(threading_state->bsdtar->diskreader, entry) == ARCHIVE_EOF) {
+        pthread_mutex_lock(&threading_state->mutex);
+        *threading_state->lastPtr = entry;
+        threading_state->lastPtr = &archive_entry_extra(entry)->next;
+        pthread_mutex_unlock(&threading_state->mutex);
+        CHECKRC( sem_post(threading_state->output_sem), "sem_post entry output");
+        return;
+    }
+
+    CHECKRC(sem_wait(threading_state->input_sem), "input_sem wait");
+    
+    archive_entry_extra(entry)->threaded = 1;
+    CHECKRC(pthread_create(&archive_entry_extra(entry)->thread, NULL, archive_threading_thread, entry),
+            "Thread create error: %s", archive_entry_pathname(entry));
+}
+
+static void *archive_threading_writer( void *arg ) {
 
     while(1) {
-        
-        sem_wait(threading_state->output_sem);
+
+        CHECKRC(sem_wait(threading_state->output_sem), "output_sem wait");
 
         pthread_mutex_lock(&threading_state->mutex);
         struct archive_entry *entry = threading_state->next;
@@ -939,82 +1006,13 @@ static void *archive_threading_gatherer( void *arg ) {
     }
 }
 
-static void archive_threading_setup(struct bsdtar *bsdtar, struct archive *a) {
-    threading_state = calloc( sizeof *threading_state, 1 );
-
-    CHECKRC(pthread_mutex_init(&threading_state->mutex, NULL), "Mutex init error");
-
-    sem_unlink(input_sname);
-    sem_unlink(output_sname);
-    CHECKRC(!(threading_state->input_sem = sem_open(input_sname, O_CREAT, 0644, ARCHIVE_MAX_THREADS)),
-        "input_sem %s\n", strerror(errno));
-    CHECKRC(!(threading_state->output_sem = sem_open(output_sname, O_CREAT, 0644, 0)),
-        "output_sem %s\n", strerror(errno) );
-
-    threading_state->lastPtr = &threading_state->next;
-    threading_state->bsdtar = bsdtar;
-    threading_state->a = a;
-
-    CHECKRC(pthread_create(&threading_state->gatherer_thread, NULL, archive_threading_gatherer, NULL), "Gatherer thread create error");
-}
-
-static void *archive_threading_thread( void *arg ) {
-    int e = ARCHIVE_OK, r;
-    struct archive_entry *entry = arg;
-    struct archive_entry_extra *extra = archive_entry_extra(entry);
-
-    /*
-     * If we opened a file earlier, write it out now.  Note that
-     * the format handler might have reset the size field to zero
-     * to inform us that the archive body won't get stored.  In
-     * that case, just skip the write.
-     */
-    if (e >= ARCHIVE_WARN && archive_entry_size(entry) > 0) {
-        if ((r = archive_read_data_block2(threading_state->bsdtar->diskreader, (const void **)&extra->entry_buff,
-                                       &extra->bytes_read, &extra->offset, entry)) != ARCHIVE_OK)
-            archive_set_error(threading_state->bsdtar->diskreader, errno, "Archive read error; %s", archive_entry_pathname(entry));
-    }
-
-    pthread_mutex_lock(&threading_state->mutex);
-    *threading_state->lastPtr = entry;
-    threading_state->lastPtr = &archive_entry_extra(entry)->next;
-    pthread_mutex_unlock(&threading_state->mutex);
-
-    CHECKRC(sem_post(threading_state->output_sem), "sem_post output");
-    return entry;
-}
-
-static void archive_threading_entry( struct archive_entry *entry ) {
-    pthread_mutex_lock(&threading_state->mutex);
-    threading_state->entries++;
-    pthread_mutex_unlock(&threading_state->mutex);
-
-    int r;
-    if (!archive_entry_size(entry) ||
-        (r = archive_read_data_block1(threading_state->bsdtar->diskreader, entry)) == ARCHIVE_EOF) {
-        pthread_mutex_lock(&threading_state->mutex);
-        *threading_state->lastPtr = entry;
-        threading_state->lastPtr = &archive_entry_extra(entry)->next;
-        pthread_mutex_unlock(&threading_state->mutex);
-        CHECKRC( sem_post(threading_state->output_sem), "sem_post entry output");
-        return;
-    }
-
-    CHECKRC(sem_wait(threading_state->input_sem), "input_sem wait");
-
-    
-    archive_entry_extra(entry)->threaded = 1;
-    CHECKRC(pthread_create(&archive_entry_extra(entry)->thread, NULL, archive_threading_thread, entry),
-            "Thread create error: %s", archive_entry_pathname(entry) );
-}
-
 static void archive_threading_complete() {
     pthread_mutex_lock(&threading_state->mutex);
     threading_state->finishing = 1;
     pthread_mutex_unlock(&threading_state->mutex);
 
     CHECKRC(sem_post(threading_state->output_sem), "sem_post output");
-    CHECKRC(pthread_join(threading_state->gatherer_thread, NULL), "Gatherer thread join error");
+    CHECKRC(pthread_join(threading_state->writer_thread, NULL), "Writer thread join error");
 
     pthread_mutex_destroy(&threading_state->mutex);
     sem_close(threading_state->input_sem);
@@ -1025,6 +1023,7 @@ static void archive_threading_complete() {
     threading_state = NULL;
 }
 
+/* End of additions for threaded tar creation */
 
 /*
  * Add the file or dir hierarchy named by 'path' to the archive
