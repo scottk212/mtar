@@ -73,6 +73,7 @@ struct bsdtar {
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
+    char		  threading; /* paralellize file reads */
 	struct creation_set *cset;
 
 	/* Option parser state */

@@ -335,11 +335,15 @@
 #endif
 
 #ifndef NOTHREAD
+#ifndef HAVE_CONFIG_H
 #  include "yarn.h"     /* thread, launch(), join(), join_all(), */
                         /* lock, new_lock(), possess(), twist(), wait_for(),
                            release(), peek_lock(), free_lock(), yarn_name */
+#  include "zopfli/deflate.h"     /* DeflatePart(), Options */
+#else
+#  include "yarn.c"
 #endif
-#include "zopfli/deflate.h"     /* DeflatePart(), Options */
+#endif
 
 /* for local functions and globals */
 #define local static
@@ -658,6 +662,10 @@ local void log_dump(void)
 
 #endif
 
+/* hooks to intercept read and write request */
+ssize_t (*read_hook)(int, void *, size_t) = read;
+ssize_t	(*write_hook)(int, const void *, size_t) = write;
+
 /* read up to len bytes into buf, repeating read() calls as needed */
 local size_t readn(int desc, unsigned char *buf, size_t len)
 {
@@ -666,7 +674,7 @@ local size_t readn(int desc, unsigned char *buf, size_t len)
 
     got = 0;
     while (len) {
-        ret = read(desc, buf, len);
+        ret = read_hook(desc, buf, len);
         if (ret < 0)
             bail("read error on ", g.inf);
         if (ret == 0)
@@ -684,7 +692,7 @@ local void writen(int desc, unsigned char *buf, size_t len)
     ssize_t ret;
 
     while (len) {
-        ret = write(desc, buf, len);
+        ret = write_hook(desc, buf, len);
         if (ret < 1) {
             complain("write error code %d", errno);
             bail("write error on ", g.outf);
@@ -1281,7 +1289,9 @@ local void compress_thread(void *dummy)
     int bits;                       /* deflate pending bits */
 #endif
     struct space *temp;             /* temporary space for zopfli input */
+#ifndef HAVE_CONFIG_H
     Options opts;                   /* zopfli options */
+#endif
     z_stream strm;                  /* deflate stream */
 
     (void)dummy;
@@ -1316,6 +1326,7 @@ local void compress_thread(void *dummy)
             (void)deflateParams(&strm, g.level, Z_DEFAULT_STRATEGY);
         }
         else {
+#ifndef HAVE_CONFIG_H
             /* default zopfli options as set by InitOptions():
                  verbose = 0
                  numiterations = 15
@@ -1326,6 +1337,10 @@ local void compress_thread(void *dummy)
             InitOptions(&opts);
             temp = get_space(&out_pool);
             temp->len = 0;
+#else
+            fprintf(stderr,"zopfli not supported");
+            exit(1);
+#endif
         }
 
         /* set dictionary if provided, release that input or dictionary buffer
@@ -1410,6 +1425,7 @@ local void compress_thread(void *dummy)
                     deflate_engine(&strm, job->out, Z_FINISH);
             }
             else {
+#ifndef HAVE_CONFIG_H
                 /* compress len bytes using zopfli, bring to byte boundary */
                 unsigned char bits, *out;
                 size_t outsize;
@@ -1443,6 +1459,7 @@ local void compress_thread(void *dummy)
                     }
                 }
                 temp->len += len;
+#endif
             }
         } while (left);
         if (g.level > 9)
@@ -3390,64 +3407,6 @@ local void process(char *path)
     RELEASE(g.outf);
 }
 
-local char *helptext[] = {
-"Usage: pigz [options] [files ...]",
-"  will compress files in place, adding the suffix '.gz'.  If no files are",
-#ifdef NOTHREAD
-"  specified, stdin will be compressed to stdout.  pigz does what gzip does.",
-#else
-"  specified, stdin will be compressed to stdout.  pigz does what gzip does,",
-"  but spreads the work over multiple processors and cores when compressing.",
-#endif
-"",
-"Options:",
-"  -0 to -9, -11        Compression level (11 is much slower, a few % better)",
-"  --fast, --best       Compression levels 1 and 9 respectively",
-"  -b, --blocksize mmm  Set compression block size to mmmK (default 128K)",
-"  -c, --stdout         Write all processed output to stdout (won't delete)",
-"  -d, --decompress     Decompress the compressed input",
-"  -f, --force          Force overwrite, compress .gz, links, and to terminal",
-"  -h, --help           Display a help screen and quit",
-"  -i, --independent    Compress blocks independently for damage recovery",
-"  -k, --keep           Do not delete original file after processing",
-"  -K, --zip            Compress to PKWare zip (.zip) single entry format",
-"  -l, --list           List the contents of the compressed input",
-"  -L, --license        Display the pigz license and quit",
-"  -n, --no-name        Do not store or restore file name in/from header",
-"  -N, --name           Store/restore file name and mod time in/from header",
-#ifndef NOTHREAD
-"  -p, --processes n    Allow up to n compression threads (default is the",
-"                       number of online processors, or 8 if unknown)",
-#endif
-"  -q, --quiet          Print no messages, even on error",
-"  -r, --recursive      Process the contents of all subdirectories",
-"  -R, --rsyncable      Input-determined block locations for rsync",
-"  -S, --suffix .sss    Use suffix .sss instead of .gz (for compression)",
-"  -t, --test           Test the integrity of the compressed input",
-"  -T, --no-time        Do not store or restore mod time in/from header",
-#ifdef DEBUG
-"  -v, --verbose        Provide more verbose output (-vv to debug)",
-#else
-"  -v, --verbose        Provide more verbose output",
-#endif
-"  -V  --version        Show the version of pigz",
-"  -z, --zlib           Compress to zlib (.zz) instead of gzip format",
-"  --                   All arguments after \"--\" are treated as files"
-};
-
-/* display the help text above */
-local void help(void)
-{
-    int n;
-
-    if (g.verbosity == 0)
-        return;
-    for (n = 0; n < (int)(sizeof(helptext) / sizeof(char *)); n++)
-        fprintf(stderr, "%s\n", helptext[n]);
-    fflush(stderr);
-    exit(0);
-}
-
 #ifndef NOTHREAD
 
 /* try to determine the number of processors */
@@ -3494,6 +3453,90 @@ local void defaults(void)
     g.force = 0;                    /* don't overwrite, don't compress links */
     g.recurse = 0;                  /* don't go into directories */
     g.form = 0;                     /* use gzip format */
+}
+
+#ifdef HAVE_CONFIG_H
+int pigz_main( char *name, int level,
+    ssize_t (*a_read_hook)(int, void *, size_t),
+    ssize_t	(*a_write_hook)(int, const void *, size_t) ) {
+
+    /* set all options to defaults */
+    defaults();
+
+    g.level = level;
+
+    g.name = strdup( name );
+    read_hook = a_read_hook;
+    write_hook = a_write_hook;
+
+#ifndef NOTHREAD
+    if (g.procs > 1)
+        parallel_compress();
+#endif
+    else
+        single_compress(0);
+
+    return Z_OK;
+}
+
+#else
+
+local char *helptext[] = {
+    "Usage: pigz [options] [files ...]",
+    "  will compress files in place, adding the suffix '.gz'.  If no files are",
+#ifdef NOTHREAD
+    "  specified, stdin will be compressed to stdout.  pigz does what gzip does.",
+#else
+    "  specified, stdin will be compressed to stdout.  pigz does what gzip does,",
+    "  but spreads the work over multiple processors and cores when compressing.",
+#endif
+    "",
+    "Options:",
+    "  -0 to -9, -11        Compression level (11 is much slower, a few % better)",
+    "  --fast, --best       Compression levels 1 and 9 respectively",
+    "  -b, --blocksize mmm  Set compression block size to mmmK (default 128K)",
+    "  -c, --stdout         Write all processed output to stdout (won't delete)",
+    "  -d, --decompress     Decompress the compressed input",
+    "  -f, --force          Force overwrite, compress .gz, links, and to terminal",
+    "  -h, --help           Display a help screen and quit",
+    "  -i, --independent    Compress blocks independently for damage recovery",
+    "  -k, --keep           Do not delete original file after processing",
+    "  -K, --zip            Compress to PKWare zip (.zip) single entry format",
+    "  -l, --list           List the contents of the compressed input",
+    "  -L, --license        Display the pigz license and quit",
+    "  -n, --no-name        Do not store or restore file name in/from header",
+    "  -N, --name           Store/restore file name and mod time in/from header",
+#ifndef NOTHREAD
+    "  -p, --processes n    Allow up to n compression threads (default is the",
+    "                       number of online processors, or 8 if unknown)",
+#endif
+    "  -q, --quiet          Print no messages, even on error",
+    "  -r, --recursive      Process the contents of all subdirectories",
+    "  -R, --rsyncable      Input-determined block locations for rsync",
+    "  -S, --suffix .sss    Use suffix .sss instead of .gz (for compression)",
+    "  -t, --test           Test the integrity of the compressed input",
+    "  -T, --no-time        Do not store or restore mod time in/from header",
+#ifdef DEBUG
+    "  -v, --verbose        Provide more verbose output (-vv to debug)",
+#else
+    "  -v, --verbose        Provide more verbose output",
+#endif
+    "  -V  --version        Show the version of pigz",
+    "  -z, --zlib           Compress to zlib (.zz) instead of gzip format",
+    "  --                   All arguments after \"--\" are treated as files"
+};
+
+/* display the help text above */
+local void help(void)
+{
+    int n;
+
+    if (g.verbosity == 0)
+        return;
+    for (n = 0; n < (int)(sizeof(helptext) / sizeof(char *)); n++)
+        fprintf(stderr, "%s\n", helptext[n]);
+    fflush(stderr);
+    exit(0);
 }
 
 /* long options conversion to short options */
@@ -3790,3 +3833,4 @@ int main(int argc, char **argv)
     log_dump();
     return g.warned ? 2 : 0;
 }
+#endif

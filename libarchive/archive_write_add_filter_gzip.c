@@ -37,6 +37,11 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_compression_gzip.c 201
 #include <string.h>
 #endif
 #include <time.h>
+
+ // zlib is now required for pigz
+#undef HAVE_ZLIB_H
+#define HAVE_ZLIB_H
+
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -391,6 +396,8 @@ drive_compressor(struct archive_write_filter *f,
 		}
 	}
 }
+
+#include "../tar/pigz_filter.c"
 
 #else /* HAVE_ZLIB_H */
 

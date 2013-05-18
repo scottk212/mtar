@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Short options for tar.  Please keep this sorted.
  */
 static const char *short_options
-	= "aBb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
+	= "aBb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xYyZz";
 
 /*
  * Long options for tar.  Please keep this list sorted.

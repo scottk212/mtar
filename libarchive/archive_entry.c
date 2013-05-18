@@ -1691,6 +1691,9 @@ ae_wcstofflags(const wchar_t *s, unsigned long *setp, unsigned long *clrp)
 	return (failed);
 }
 
+struct archive_entry_extra *archive_entry_extra( struct archive_entry *ae ) {
+    return &ae->thread_state;
+}
 
 #ifdef TEST
 #include <stdio.h>

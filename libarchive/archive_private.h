@@ -77,6 +77,9 @@ struct archive_vtable {
 	    struct archive_entry *);
 	int	(*archive_read_data_block)(struct archive *,
 	    const void **, size_t *, int64_t *);
+	int	(*archive_read_data_block1)(struct archive *, struct archive_entry *ae);
+	int	(*archive_read_data_block2)(struct archive *,
+	    const void **, size_t *, int64_t *, struct archive_entry *ae);
 
 	int	(*archive_filter_count)(struct archive *);
 	int64_t (*archive_filter_bytes)(struct archive *, int);

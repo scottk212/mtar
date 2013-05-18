@@ -171,6 +171,8 @@ struct archive_entry {
 
 	/* Miscellaneous. */
 	char		 strmode[12];
+
+    struct archive_entry_extra thread_state;
 };
 
 #endif /* ARCHIVE_ENTRY_PRIVATE_H_INCLUDED */

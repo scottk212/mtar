@@ -223,7 +223,8 @@ typedef int archive_switch_callback(struct archive *, void *_client_data1,
 #define	ARCHIVE_FILTER_LRZIP	10
 #define	ARCHIVE_FILTER_LZOP	11
 #define	ARCHIVE_FILTER_GRZIP	12
-
+#define ARCHIVE_FILTER_PIGZ 13
+    
 #if ARCHIVE_VERSION_NUMBER < 4000000
 #define	ARCHIVE_COMPRESSION_NONE	ARCHIVE_FILTER_NONE
 #define	ARCHIVE_COMPRESSION_GZIP	ARCHIVE_FILTER_GZIP
@@ -482,6 +483,10 @@ __LA_DECL __LA_INT64_T archive_seek_data(struct archive *, __LA_INT64_T, int);
 __LA_DECL int archive_read_data_block(struct archive *a,
 		    const void **buff, size_t *size, __LA_INT64_T *offset);
 
+__LA_DECL int archive_read_data_block1(struct archive *a, struct archive_entry *);
+__LA_DECL int archive_read_data_block2(struct archive *a,
+		    const void **buff, size_t *size, __LA_INT64_T *offset, struct archive_entry *);
+
 /*-
  * Some convenience functions that are built on archive_read_data:
  *  'skip': skips entire entry
@@ -642,6 +647,7 @@ __LA_DECL int archive_write_add_filter_bzip2(struct archive *);
 __LA_DECL int archive_write_add_filter_compress(struct archive *);
 __LA_DECL int archive_write_add_filter_grzip(struct archive *);
 __LA_DECL int archive_write_add_filter_gzip(struct archive *);
+__LA_DECL int archive_write_add_filter_pigz(struct archive *);
 __LA_DECL int archive_write_add_filter_lrzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lzip(struct archive *);
 __LA_DECL int archive_write_add_filter_lzma(struct archive *);

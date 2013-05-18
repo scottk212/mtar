@@ -134,6 +134,7 @@ __FBSDID("$FreeBSD$");
  *    3) Arbitrary logical traversals by closing/reopening intermediate fds.
  */
 
+#if 000
 struct restore_time {
 	const char		*name;
 	time_t			 mtime;
@@ -143,6 +144,7 @@ struct restore_time {
 	mode_t			 filetype;
 	int			 noatime;
 };
+#endif
 
 struct tree_entry {
 	int			 depth;
@@ -356,6 +358,9 @@ static int	_archive_read_free(struct archive *);
 static int	_archive_read_close(struct archive *);
 static int	_archive_read_data_block(struct archive *,
 		    const void **, size_t *, int64_t *);
+static int  _archive_read_data_block1(struct archive *_a, struct archive_entry *ae );
+static int	_archive_read_data_block2(struct archive *,
+		    const void **, size_t *, int64_t *, struct archive_entry *);
 static int	_archive_read_next_header2(struct archive *,
 		    struct archive_entry *);
 static const char *trivial_lookup_gname(void *, int64_t gid);
@@ -377,6 +382,8 @@ archive_read_disk_vtable(void)
 		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 		av.archive_read_data_block = _archive_read_data_block;
+		av.archive_read_data_block1 = _archive_read_data_block1;
+		av.archive_read_data_block2 = _archive_read_data_block2;
 		av.archive_read_next_header2 = _archive_read_next_header2;
 		inited = 1;
 	}
@@ -849,6 +856,177 @@ abort_read_data:
 	if (t->entry_fd >= 0) {
 		/* Close the current file descriptor */
 		close_and_restore_time(t->entry_fd, t, &t->restore_time);
+		t->entry_fd = -1;
+	}
+	return (r);
+}
+
+static int
+_archive_read_data_block1(struct archive *_a, struct archive_entry *ae )
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+    struct archive_entry_extra *t = archive_entry_extra(ae);
+	int r;
+
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+                        "archive_read_data_block");
+
+    t->restore_time = a->tree->restore_time;
+	t->entry_remaining_bytes = archive_entry_size(ae);
+	if (t->entry_eof || t->entry_remaining_bytes <= 0) {
+        t->entry_fd = -1;
+		r = ARCHIVE_EOF;
+		goto abort_read_data;
+	}
+
+	/*
+	 * Open the current file.
+	 */
+	if (t->entry_fd <= 0) {
+		int flags = O_RDONLY | O_BINARY | O_CLOEXEC;
+
+		/*
+		 * Eliminate or reduce cache effects if we can.
+		 *
+		 * Carefully consider this to be enabled.
+		 */
+#if defined(O_DIRECT) && 0/* Disabled for now */
+		if (t->current_filesystem->xfer_align != -1 &&
+		    t->nlink == 1)
+			flags |= O_DIRECT;
+#endif
+
+#if defined(O_NOATIME)
+		/*
+		 * Linux has O_NOATIME flag; use it if we need.
+		 */
+		if ((t->flags & needsRestoreTimes) != 0 &&
+		    t->restore_time.noatime == 0)
+            flags |= O_NOATIME;
+		do {
+#endif
+            t->entry_fd = open_on_current_dir(a->tree,
+                                              tree_current_access_path(a->tree), flags);
+
+			__archive_ensure_cloexec_flag(t->entry_fd);
+#if defined(O_NOATIME)
+			/*
+			 * When we did open the file with O_NOATIME flag,
+			 * if successful, set 1 to t->restore_time.noatime
+			 * not to restore an atime of the file later.
+			 * if failed by EPERM, retry it without O_NOATIME flag.
+			 */
+			if (flags & O_NOATIME) {
+				if (t->entry_fd >= 0)
+                    t->restore_time.noatime = 1;
+				else if (errno == EPERM) {
+					flags &= ~O_NOATIME;
+					continue;
+				}
+			}
+		} while (0);
+#endif
+		if (t->entry_fd < 0) {
+			archive_set_error(&a->archive, errno,
+                              "Couldn't open %s", archive_entry_sourcepath(ae));
+			r = ARCHIVE_FAILED;
+			tree_enter_initial_dir(a->tree);
+			goto abort_read_data;
+		}
+		///tree_enter_initial_dir(a->tree);
+	}
+
+	return (ARCHIVE_OK);
+
+abort_read_data:
+	if (t->entry_fd >= 0) {
+		/* Close the current file descriptor */
+        a->tree->flags = t->flags;
+        close_and_restore_time(t->entry_fd, a->tree, &t->restore_time);
+		t->entry_fd = -1;
+	}
+	return (r);
+}
+
+static int
+_archive_read_data_block2(struct archive *_a, const void **buff,
+                          size_t *size, int64_t *offset, struct archive_entry *ae )
+{
+	struct archive_read_disk *a = (struct archive_read_disk *)_a;
+    struct archive_entry_extra *t = archive_entry_extra(ae);
+	int r;
+	ssize_t bytes;
+	size_t buffbytes;
+#if 000
+	archive_check_magic(_a, ARCHIVE_READ_DISK_MAGIC, ARCHIVE_STATE_DATA,
+                        "archive_read_data_block");
+#endif
+	if (t->entry_eof || t->entry_remaining_bytes <= 0) {
+		r = ARCHIVE_EOF;
+		goto abort_read_data;
+	}
+
+#define MAX_ENTRY_BUFF_SIZE 64*1024*1024
+
+    if ( !t->entry_buff ) {
+        t->buff_size = (size_t)archive_entry_size(ae);
+        if ( t->buff_size > MAX_ENTRY_BUFF_SIZE )
+            t->buff_size = MAX_ENTRY_BUFF_SIZE;
+
+        t->entry_buff = malloc( t->buff_size );
+        if ( !t->entry_buff ) {
+            fprintf(stderr, "No memory for %d byte buffer for file: %s\n",
+                      (int)t->buff_size, archive_entry_sourcepath(ae));
+            exit(1);
+        }
+    }
+
+
+    buffbytes = t->buff_size;
+
+	/*
+	 * Read file contents.
+	 */
+	if (buffbytes > 0) {
+		bytes = read(t->entry_fd, t->entry_buff, buffbytes);
+		if (bytes < 0) {
+			archive_set_error(&a->archive, errno, "Read error");
+			r = ARCHIVE_FATAL;
+			a->archive.state = ARCHIVE_STATE_FATAL;
+			goto abort_read_data;
+		}
+	} else
+		bytes = 0;
+	if (bytes == 0) {
+		/* Get EOF */
+		t->entry_eof = 1;
+		r = ARCHIVE_EOF;
+		goto abort_read_data;
+	}
+	*buff = t->entry_buff;
+	*size = bytes;
+	*offset = t->entry_total;
+	t->entry_total += bytes;
+	t->entry_remaining_bytes -= bytes;
+	if (t->entry_remaining_bytes == 0) {
+		/* Close the current file descriptor */
+        a->tree->flags = t->flags;
+		close_and_restore_time(t->entry_fd, a->tree, &a->tree->restore_time);
+		t->entry_fd = -1;
+		t->entry_eof = 1;
+	}
+	return (ARCHIVE_OK);
+
+abort_read_data:
+    if ( t->entry_buff )
+        free( t->entry_buff );
+	*buff = t->entry_buff = NULL;
+	*size = 0;
+	*offset = t->entry_total;
+	if (t->entry_fd >= 0) {
+		/* Close the current file descriptor */
+        a->tree->flags = t->flags;
+		close_and_restore_time(t->entry_fd, a->tree, &a->tree->restore_time);
 		t->entry_fd = -1;
 	}
 	return (r);

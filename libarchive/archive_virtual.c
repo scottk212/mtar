@@ -152,7 +152,20 @@ archive_read_next_header2(struct archive *a, struct archive_entry *entry)
 
 int
 archive_read_data_block(struct archive *a,
-    const void **buff, size_t *s, int64_t *o)
+                        const void **buff, size_t *s, int64_t *o)
 {
 	return ((a->vtable->archive_read_data_block)(a, buff, s, o));
+}
+
+int
+archive_read_data_block1(struct archive *a, struct archive_entry *ae)
+{
+	return ((a->vtable->archive_read_data_block1)(a, ae));
+}
+
+int
+archive_read_data_block2(struct archive *a,
+                         const void **buff, size_t *s, int64_t *o, struct archive_entry *ae)
+{
+	return ((a->vtable->archive_read_data_block2)(a, buff, s, o, ae));
 }

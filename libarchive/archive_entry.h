@@ -605,6 +605,31 @@ __LA_DECL void archive_entry_linkify(struct archive_entry_linkresolver *,
 __LA_DECL struct archive_entry *archive_entry_partial_links(
     struct archive_entry_linkresolver *res, unsigned int *links);
 
+#include <pthread.h>
+
+struct archive_entry_extra {
+
+    int64_t offset, entry_remaining_bytes, entry_total;
+    int entry_fd, entry_eof, threaded, flags;
+    size_t bytes_read, buff_size;
+    void *entry_buff;
+
+    struct restore_time {
+        const char		*name;
+        time_t			 mtime;
+        long			 mtime_nsec;
+        time_t			 atime;
+        long			 atime_nsec;
+        mode_t			 filetype;
+        int			 noatime;
+    } restore_time;
+
+    struct archive_entry *next;
+    pthread_t thread;
+};
+
+__LA_DECL struct archive_entry_extra *archive_entry_extra( struct archive_entry * );
+
 #ifdef __cplusplus
 }
 #endif

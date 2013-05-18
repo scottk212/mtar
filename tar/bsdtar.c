@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/bsdtar.c,v 1.93 2008/11/08 04:43:24 kientzle
 #include <sys/stat.h>
 #endif
 #ifdef HAVE_COPYFILE_H
-#include <copyfile.h>
+//#include <copyfile.h>
 #endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -199,7 +199,9 @@ main(int argc, char **argv)
 		lafe_warnc(0, "Failed to set default locale");
 #endif
 #if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
+#ifdef D_MD_ORDER
 	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+#endif
 #endif
 	possible_help_request = 0;
 
@@ -652,6 +654,9 @@ main(int argc, char **argv)
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
 			break;
+		case 'Y':
+			bsdtar->threading = 1;
+			break;
 		case 'y': /* FreeBSD version of GNU tar */
 			if (compression != '\0')
 				lafe_errc(1, 0,
@@ -683,6 +688,9 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+
+    if ( bsdtar->threading && compression == 'z' )
+        compression_name = "pigz";
 
 	/*
 	 * Sanity-check options.
@@ -857,9 +865,10 @@ usage(void)
 static void
 version(void)
 {
-	printf("bsdtar %s - %s\n",
+	printf("bsdtar %s - %s - %s\n",
 	    BSDTAR_VERSION_STRING,
-	    archive_version_string());
+	    archive_version_string(),
+        "pigz 2.3");
 	exit(0);
 }
 
@@ -885,7 +894,8 @@ static const char *long_help_msg =
 	"  -k    Keep (don't overwrite) existing files\n"
 	"  -m    Don't restore modification times\n"
 	"  -O    Write entries to stdout, don't restore to disk\n"
-	"  -p    Restore permissions (including ACLs, owner, file flags)\n";
+	"  -p    Restore permissions (including ACLs, owner, file flags)\n"
+    "  -Y    Multi-thread archiving and compression\n";
 
 
 /*
