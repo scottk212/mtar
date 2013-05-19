@@ -7,7 +7,23 @@ mtar creates archives fully compatable with tar, sometimes dramatically faster.
 
 To enable mutli-threading, add the option "Y" to your tar command e.g.:
 
-	./bsdtar cfvzY tarfile.tgz dir1 dir2 etc.
+    $ mtar/bsdtar cfzY /tmp/a.tgz emacs-23.3/
+
+    real	0m15.217s
+    user	0m20.291s
+    sys	0m3.285s
+
+    $ mtar/bsdtar cfz /tmp/a.tgz emacs-23.3/
+
+    real	0m29.664s
+    user	0m15.712s
+    sys	0m2.307s
+
+Binary releases of  mtar are available at the following links:
+
+[OS X 64 bit v1.0](http://johnholdsworth.com/injectionforxcode/mtar_osx8_1.0.tgz)
+
+[Linux 32 bit v1.0](http://johnholdsworth.com/injectionforxcode/mtar_u12_1.0.tgz)
 
 To improve archiving speed two optimisations have been made to the source code. Reading
 of input files has been multi-threaded for improved performance on slow file systems or
@@ -48,8 +64,7 @@ This is the initial version of mtar. Please file bug reports to [mtar@johnholdsw
 or fork and enter pull requests with any improvements on github in the usual way.
 I should warn you the way pigz_filter.c has been incorporated via a #include from
 libarchive/archive_write_add_filter_gzip.c
-is a little untidy to keep changes to the project Makefile to a minimum (I also couldn't
-get autoconf to build on my mac!) 
+is a little untidy to avoid making changes to the project Makefile.
 
 ## Please note:
 
