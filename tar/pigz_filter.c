@@ -84,7 +84,7 @@ static void *pigz_thread( void *arg ) {
 
     const char *filename = "";
     archive_mstring_get_mbs( data->f->archive, &write_file_data->filename, &filename );
-    char tarname[PATH_MAX], *dot = strrchr( filename, '.' );
+    char tarname[PATH_MAX], *dot = filename ? strrchr( filename, '.' ) : NULL;
 
     /* try to set name of file zippped correctly */
     if ( dot && (strcmp(dot, ".tgz") == 0 || //strcmp(dot, ".gz") == 0 ||
