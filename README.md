@@ -5,7 +5,7 @@ Copyright (c) Original authors & John Holdsworth 2013
 Initial version of "mtar", a modified verion of the bsdtar sources to multi-thread archive creation.
 mtar creates archives fully compatable with tar, sometimes dramatically faster.
 
-To enable mutli-threading add the option "Y" to your tar command e.g.:
+To enable mutli-threading, add the option "Y" to your tar command e.g.:
 
 	./bsdtar cfvzY tarfile.tgz dir1 dir2 etc.
 
@@ -13,7 +13,8 @@ To improve archiving speed two optimisations have been made to the source code. 
 of input files has been multi-threaded for improved performance on slow file systems or
 when used on network file shares. More importantly compression of the archive created
 has been multi-threaded by incorporating the "pigz" project for dramatic reductions 
-in archive creation times on modern multi-cored architectures. 
+in archive creation times on modern multi-cored architectures or SSDs where disk
+access is now much faster than single threaded compression. 
 
 "mtar" is a modified version of the following software:
 
@@ -35,7 +36,7 @@ then, the following will create the binary "./bsdtar":
 
     make
 
-On Linux you will need to manually edit Makefile to add "-lpthread" to the end of
+On Linux you will need to manually edit the Makefile to add "-lpthread" to the end of
 the line containing "LDFLAGS =" and rebuild. You may also need to install zlib
 using the command:
 

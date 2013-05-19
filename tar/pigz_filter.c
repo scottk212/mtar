@@ -29,9 +29,8 @@
 #include <semaphore.h>
 
 struct {
-
-    struct archive_write_filter *f;
     int compression_level, timestamp, running;
+    struct archive_write_filter *f;
     sem_t *can_write, *can_read;
     pthread_t pigz_thread;
     const char *buff;
@@ -73,7 +72,28 @@ static ssize_t pigz_read(int fdin, void *buff, size_t bytes) {
 }
 
 static void *pigz_thread( void *arg ) {
-    pigz_main("mtar", data->compression_level, pigz_read, pigz_write);
+
+	struct archive_write *a = (struct archive_write *)data->f->archive;
+    struct write_file_data {
+        int		fd;
+        struct archive_mstring filename;
+    } *write_file_data = (struct write_file_data *)a->client_data;
+
+    const char *filename = "";
+    archive_mstring_get_mbs( data->f->archive, &write_file_data->filename, &filename );
+    char tarname[PATH_MAX], *dot = strrchr( filename, '.' );
+
+    /* try to set name of file zippped correctly */
+    if ( dot && (strcmp(dot, ".tgz") == 0 || //strcmp(dot, ".gz") == 0 ||
+        ((dot = strchr(filename, '.')) && strcmp(dot, ".tar.gz") == 0) ||
+        (dot = strrchr( filename, '.' ))) ) {
+        snprintf(tarname, sizeof tarname, "%.*s.tar", (int)(dot-filename), filename);
+        filename = tarname;
+    }
+    else
+        filename = "mtar.tar";
+
+    pigz_main(filename, data->compression_level, pigz_read, pigz_write);
     return NULL;
 }
 
@@ -173,9 +193,9 @@ archive_compressor_pigz_open(struct archive_write_filter *f)
     sem_unlink(read_sname);
     sem_unlink(write_sname);
     if ( !(data->can_read = sem_open(read_sname, O_CREAT, 0644, 0)) )
-        fprintf(stderr, "input_sem %s\n", strerror(errno));
+        fprintf(stderr, "pigz input_sem %s\n", strerror(errno));
     if ( !(data->can_write = sem_open(write_sname, O_CREAT, 0644, 0)) )
-        fprintf(stderr, "output_sem %s\n", strerror(errno));
+        fprintf(stderr, "pigz output_sem %s\n", strerror(errno));
 
     return ARCHIVE_OK;
 }

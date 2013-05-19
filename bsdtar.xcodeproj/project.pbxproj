@@ -304,6 +304,7 @@
 		BB94703517400B0A0078DB85 /* cpio_windows.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpio_windows.c; path = cpio/cpio_windows.c; sourceTree = "<group>"; };
 		BB94703617400B0A0078DB85 /* cpio_windows.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpio_windows.h; path = cpio/cpio_windows.h; sourceTree = "<group>"; };
 		BB94703817400B0A0078DB85 /* cpio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = cpio.h; path = cpio/cpio.h; sourceTree = "<group>"; };
+		BBC20B791748DF2C001683B8 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -496,6 +497,7 @@
 				BB8E9FB517459AD800E10A06 /* Makefile */,
 				BB8E9FB217455D2800E10A06 /* Makefile.in */,
 				BB8E9FB017455B4700E10A06 /* Makefile.am */,
+				BBC20B791748DF2C001683B8 /* README.md */,
 				BB94702F173FD6E60078DB85 /* libiconv.dylib */,
 				BB94702D173FD6C90078DB85 /* libbz2.dylib */,
 				BB94702B173FD6B80078DB85 /* libxml2.dylib */,

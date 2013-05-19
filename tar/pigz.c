@@ -662,9 +662,9 @@ local void log_dump(void)
 
 #endif
 
-/* hooks to intercept read and write request */
-ssize_t (*read_hook)(int, void *, size_t) = read;
-ssize_t	(*write_hook)(int, const void *, size_t) = write;
+/* hooks to intercept read and write requests */
+static ssize_t (*read_hook)(int, void *, size_t) = read;
+static ssize_t (*write_hook)(int, const void *, size_t) = write;
 
 /* read up to len bytes into buf, repeating read() calls as needed */
 local size_t readn(int desc, unsigned char *buf, size_t len)
@@ -1288,7 +1288,7 @@ local void compress_thread(void *dummy)
 #if ZLIB_VERNUM >= 0x1260
     int bits;                       /* deflate pending bits */
 #endif
-    struct space *temp;             /* temporary space for zopfli input */
+    struct space *temp = NULL;      /* temporary space for zopfli input */
 #ifndef HAVE_CONFIG_H
     Options opts;                   /* zopfli options */
 #endif
@@ -3456,7 +3456,7 @@ local void defaults(void)
 }
 
 #ifdef HAVE_CONFIG_H
-int pigz_main( char *name, int level,
+int pigz_main( const char *name, int level,
     ssize_t (*a_read_hook)(int, void *, size_t),
     ssize_t	(*a_write_hook)(int, const void *, size_t) ) {
 
