@@ -26,11 +26,11 @@ has been multi-threaded by incorporating the "pigz" project for dramatic reducti
 in archive creation times on modern multi-cored architectures or using SSDs where
 disk access is now much faster than single threaded compression. 
 
-Binary releases of the 1.0 version mtar are available at the following links:
+As compatible as possible releases of mtar are available at the following links:
 
-[OS X 64 bit built on OS X Mountain Lion](http://johnholdsworth.com/injectionforxcode/mtar_osx8_1.0.tgz)
+[OS X 64 bit built on Snow Leopard (10.6.8)](http://johnholdsworth.com/injectionforxcode/mtar_osx6_1.0.tgz)
 
-[Linux 32 bit built on Ubuntu 10.04.4](http://johnholdsworth.com/injectionforxcode/mtar_u10_1.0.tgz)
+[Linux 32 bit built on Ubuntu (10.04.4)](http://johnholdsworth.com/injectionforxcode/mtar_u10_1.0.tgz)
 
 On OSX you will need to right click on the extracted binary in Finder and click Open initially as it is
 not developer ID codesigned. On Linux your milage may vary as it no longer seems to be possible to link 
