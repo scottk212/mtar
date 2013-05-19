@@ -7,23 +7,17 @@ mtar creates archives fully compatable with tar, sometimes dramatically faster.
 
 To enable mutli-threading, add the option "Y" to your tar command e.g.:
 
-    $ mtar/bsdtar cfzY /tmp/a.tgz emacs-23.3/
-
-    real	0m15.217s
-    user	0m20.291s
-    sys	0m3.285s
-
     $ mtar/bsdtar cfz /tmp/a.tgz emacs-23.3/
 
     real	0m29.664s
     user	0m15.712s
     sys	0m2.307s
 
-Binary releases of  mtar are available at the following links:
+    $ mtar/bsdtar cfzY /tmp/a.tgz emacs-23.3/
 
-[OS X 64 bit v1.0](http://johnholdsworth.com/injectionforxcode/mtar_osx8_1.0.tgz)
-
-[Linux 32 bit v1.0](http://johnholdsworth.com/injectionforxcode/mtar_u12_1.0.tgz)
+    real	0m15.217s
+    user	0m20.291s
+    sys	0m3.285s
 
 To improve archiving speed two optimisations have been made to the source code. Reading
 of input files has been multi-threaded for improved performance on slow file systems or
@@ -32,11 +26,23 @@ has been multi-threaded by incorporating the "pigz" project for dramatic reducti
 in archive creation times on modern multi-cored architectures or using SSDs where
 disk access is now much faster than single threaded compression. 
 
+Binary releases of the 1.0 version mtar are available at the following links:
+
+[OS X 64 bit built on OS X Mountain Lion](http://johnholdsworth.com/injectionforxcode/mtar_osx8_1.0.tgz)
+
+[Linux 32 bit built on Ubuntu 10.04.4](http://johnholdsworth.com/injectionforxcode/mtar_u10_1.0.tgz)
+
+On OSX you will need to right click on the extracted binary in Finder and click Open initially as it is
+not developer ID codesigned. On Linux your milage may vary as it no longer seems to be possible to link 
+statically so this version will not run on all Linux variants. Build from the source if you encounter problems.
+
 "mtar" is a modified version of the following software:
 
     bsdtar version 3.1.2 from http://www.libarchive.org/
 
     pigz version 2.3 from http://zlib.net/pigz/
+
+Licensing is as per these original distributions.
 
 ## Building mtar
 
