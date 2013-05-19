@@ -13,8 +13,8 @@ To improve archiving speed two optimisations have been made to the source code. 
 of input files has been multi-threaded for improved performance on slow file systems or
 when used on network file shares. More importantly compression of the archive created
 has been multi-threaded by incorporating the "pigz" project for dramatic reductions 
-in archive creation times on modern multi-cored architectures or SSDs where disk
-access is now much faster than single threaded compression. 
+in archive creation times on modern multi-cored architectures or using SSDs where
+disk access is now much faster than single threaded compression. 
 
 "mtar" is a modified version of the following software:
 
@@ -46,7 +46,8 @@ using the command:
 
 This is the initial version of mtar. Please file bug reports to [mtar@johnholdsworth.com](mailto:mtar@johnholdsworth.com)
 or fork and enter pull requests with any improvements on github in the usual way.
-I should warn you the way pigz has been incorporated via a #include from libarchive/archive_write_add_filter_gzip.c
+I should warn you the way pigz_filter.c has been incorporated via a #include from
+libarchive/archive_write_add_filter_gzip.c
 is a little untidy to keep changes to the project Makefile to a minimum (I also couldn't
 get autoconf to build on my mac!) 
 

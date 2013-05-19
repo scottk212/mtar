@@ -862,13 +862,17 @@ usage(void)
 	exit(1);
 }
 
+#define PIGZ_VERSION_STRING "pigz 2.3"
+#define MTAR_VERSION_STRING "mtar 1.0"
+
 static void
 version(void)
 {
-	printf("bsdtar %s - %s - %s\n",
+	printf("bsdtar %s - %s - %s - %s\n",
 	    BSDTAR_VERSION_STRING,
 	    archive_version_string(),
-        "pigz 2.3");
+        PIGZ_VERSION_STRING,
+        MTAR_VERSION_STRING);
 	exit(0);
 }
 

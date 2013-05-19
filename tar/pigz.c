@@ -3456,16 +3456,17 @@ local void defaults(void)
 }
 
 #ifdef HAVE_CONFIG_H
-int pigz_main( const char *name, int level,
+int pigz_main( const char *name, time_t timestamp, int level,
     ssize_t (*a_read_hook)(int, void *, size_t),
     ssize_t	(*a_write_hook)(int, const void *, size_t) ) {
 
     /* set all options to defaults */
     defaults();
 
+    g.name = strdup( name );
+    g.mtime = timestamp;
     g.level = level;
 
-    g.name = strdup( name );
     read_hook = a_read_hook;
     write_hook = a_write_hook;
 

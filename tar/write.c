@@ -1023,7 +1023,7 @@ static void archive_threading_complete() {
     threading_state = NULL;
 }
 
-/* End of additions for threaded tar creation */
+/* End of extra code for threaded tar creation */
 
 /*
  * Add the file or dir hierarchy named by 'path' to the archive

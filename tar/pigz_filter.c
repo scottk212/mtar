@@ -28,12 +28,15 @@
 
 #include <semaphore.h>
 
-struct {
-    int compression_level, timestamp, running;
+static struct {
+
+    int compression_level, running;
     struct archive_write_filter *f;
     sem_t *can_write, *can_read;
     pthread_t pigz_thread;
+
     const char *buff;
+    time_t timestamp;
     size_t bytes, pos;
 
 } _data, *data = &_data;
@@ -93,7 +96,7 @@ static void *pigz_thread( void *arg ) {
     else
         filename = "mtar.tar";
 
-    pigz_main(filename, data->compression_level, pigz_read, pigz_write);
+    pigz_main(filename, data->timestamp, data->compression_level, pigz_read, pigz_write);
     return NULL;
 }
 
@@ -105,7 +108,7 @@ archive_compressor_pigz_write(struct archive_write_filter *f, const void *buff,
                               size_t length)
 {
     if ( !data->running++ && pthread_create(&data->pigz_thread, NULL, pigz_thread, NULL) )
-        fprintf(stderr, "Gatherer thread create error\n");
+        fprintf(stderr, "pigz thread create error\n");
 
     sem_wait(data->can_write);
 
@@ -135,7 +138,7 @@ archive_compressor_pigz_close(struct archive_write_filter *f)
     sem_post(data->can_read);
 
     if ( pthread_join(data->pigz_thread, NULL) )
-        fprintf(stderr, "Gatherer thread join error\n");
+        fprintf(stderr, "pigz thread join error\n");
 
     finish_jobs();
 
@@ -168,7 +171,7 @@ archive_compressor_pigz_options(struct archive_write_filter *f, const char *key,
 		return (ARCHIVE_OK);
 	}
 	if (strcmp(key, "timestamp") == 0) {
-		data->timestamp = (value == NULL)?-1:1;
+		data->timestamp = (value == NULL)?0:time(NULL);
 		return (ARCHIVE_OK);
 	}
 
@@ -193,9 +196,9 @@ archive_compressor_pigz_open(struct archive_write_filter *f)
     sem_unlink(read_sname);
     sem_unlink(write_sname);
     if ( !(data->can_read = sem_open(read_sname, O_CREAT, 0644, 0)) )
-        fprintf(stderr, "pigz input_sem %s\n", strerror(errno));
+        fprintf(stderr, "can_read sem %s\n", strerror(errno));
     if ( !(data->can_write = sem_open(write_sname, O_CREAT, 0644, 0)) )
-        fprintf(stderr, "pigz output_sem %s\n", strerror(errno));
+        fprintf(stderr, "can_write sem %s\n", strerror(errno));
 
     return ARCHIVE_OK;
 }
