@@ -23,10 +23,10 @@ To improve archiving speed two optimisations have been made to the source code. 
 of input files has been multi-threaded for improved performance on slow file systems or
 when used on network file shares. More importantly compression of the archive created
 has been multi-threaded by incorporating the "pigz" project for dramatic reductions 
-in archive creation times on modern multi-cored architectures or using SSDs where
+in archive creation times on modern multi-cored architectures or when using SSDs where
 disk access is now much faster than single threaded compression. 
 
-As compatible as possible releases of mtar are available at the following links:
+As compatible as possible binary releases of mtar are available from the following links:
 
 [OS X 64 bit built on Snow Leopard (10.6.8)](http://johnholdsworth.com/injectionforxcode/mtar_osx6_1.0.tgz)
 
