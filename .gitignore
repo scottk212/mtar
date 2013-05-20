@@ -1,0 +1,9 @@
+*.o
+*.lo
+*.Plo
+*.libs
+*.deps
+*.xc*
+*.la
+.dirstamp
+config.*
