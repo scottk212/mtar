@@ -30,7 +30,7 @@
 
 static struct {
 
-    int compression_level, running;
+    int compression_level, nthreads, running;
     struct archive_write_filter *f;
     sem_t *can_write, *can_read;
     pthread_t pigz_thread;
@@ -96,7 +96,7 @@ static void *pigz_thread( void *arg ) {
     else
         filename = "mtar.tar";
 
-    pigz_main(filename, data->timestamp, data->compression_level, pigz_read, pigz_write);
+    pigz_main(filename, data->timestamp, data->compression_level, data->nthreads, pigz_read, pigz_write);
     return NULL;
 }
 
@@ -174,6 +174,10 @@ archive_compressor_pigz_options(struct archive_write_filter *f, const char *key,
 		data->timestamp = (value == NULL)?0:time(NULL);
 		return (ARCHIVE_OK);
 	}
+    if (strcmp(key, "threads") == 0) {
+        data->nthreads = atoi(value);
+        return (ARCHIVE_OK);
+    }
 
 	/* Note: The "warn" return is just to inform the options
 	 * supervisor that we didn't handle it.  It will generate

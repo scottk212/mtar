@@ -1,8 +1,8 @@
 # ![Icon](http://injectionforxcode.johnholdsworth.com/mtar.png) mtar - Multi-threaded tar
 
-Copyright (c) Original authors & John Holdsworth 2013
+Copyright (c) Original authors & John Holdsworth 2013-5
 
-Initial version of "mtar", a modified verion of the bsdtar sources to multi-thread archive creation.
+Initial version of "mtar", a modified version of the bsdtar sources to multi-thread archive creation.
 mtar creates archives fully compatable with tar, sometimes dramatically faster.
 
 To enable mutli-threading, add the option "Y" to your tar command e.g.:
@@ -18,6 +18,9 @@ To enable mutli-threading, add the option "Y" to your tar command e.g.:
     real	0m15.217s
     user	0m20.291s
     sys	0m3.285s
+
+You can now control the number of threads used using --option threads=NN after the archive name.
+The default is the number of processors on the host.
 
 To improve archiving speed two optimisations have been made to the source code. Reading
 of input files has been multi-threaded for improved performance on slow file systems or

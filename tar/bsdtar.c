@@ -863,7 +863,7 @@ usage(void)
 }
 
 #define PIGZ_VERSION_STRING "pigz 2.3"
-#define MTAR_VERSION_STRING "mtar 1.0"
+#define MTAR_VERSION_STRING "mtar 1.1"
 
 static void
 version(void)
